@@ -26,9 +26,9 @@ public class CryptoPerformanceTest {
 			public void write(int b) {}
 		});
 		System.setOut(hideStream);
-    }
+    	}
 
-    @Before
+    	@Before
 	public void decryptFiles() {
 		try {
 			decrypt("jfstmerge.statistics");
@@ -124,24 +124,5 @@ public class CryptoPerformanceTest {
 		File file = new File(logPath);
 		CryptoUtils.decrypt(file, file);
 
-	}
-
-	private long computeMeanTimeOfMergeProcedure(int testCase) {
-		long totalTime = 0;
-		for(int i = 0; i < NUM_ITERATIONS; i++) {
-			long initialTime = System.currentTimeMillis();
-
-			new JFSTMerge().mergeFiles(
-					new File("testfiles/cryptoperformance/test" + testCase + "/left.java"),
-					new File("testfiles/cryptoperformance/test" + testCase + "/base.java"),
-					new File("testfiles/cryptoperformance/test" + testCase + "/right.java"),
-					null);
-
-			long finalTime = System.currentTimeMillis();
-			totalTime += finalTime - initialTime;
-
-		}
-
-		return totalTime / NUM_ITERATIONS;
 	}	
 }
