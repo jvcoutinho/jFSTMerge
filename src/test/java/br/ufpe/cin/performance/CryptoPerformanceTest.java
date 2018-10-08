@@ -123,6 +123,36 @@ public class CryptoPerformanceTest {
 
 		File file = new File(logPath);
 		CryptoUtils.decrypt(file, file);
+
 	}
+
+	private long computeMeanTimeOfMergeProcedure(int testCase) {
+		long totalTime = 0;
+		for(int i = 0; i < NUM_ITERATIONS; i++) {
+			long initialTime = System.currentTimeMillis();
+
+			new JFSTMerge().mergeFiles(
+					new File("testfiles/cryptoperformance/test" + testCase + "/left.java"),
+					new File("testfiles/cryptoperformance/test" + testCase + "/base.java"),
+					new File("testfiles/cryptoperformance/test" + testCase + "/right.java"),
+					null);
+
+			long finalTime = System.currentTimeMillis();
+			totalTime += finalTime - initialTime;
+
+		}
+
+		return totalTime / NUM_ITERATIONS;
+	}
+
+    private static File getLogPath(String file) {
+        return new File(System.getProperty("user.home") + File.separator + ".jfstmerge" + File.separator + file);
+    }
+
+    private static void renameFile(String file1, String file2) throws Exception {
+        File logPath   = getLogPath(file1);
+        File logCopyPath = getLogPath(file2);
+        Files.move(logPath.toPath(), logCopyPath.toPath(), REPLACE_EXISTING);
+    }
 	
 }
