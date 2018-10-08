@@ -143,16 +143,5 @@ public class CryptoPerformanceTest {
 		}
 
 		return totalTime / NUM_ITERATIONS;
-	}
-
-    private static File getLogPath(String file) {
-        return new File(System.getProperty("user.home") + File.separator + ".jfstmerge" + File.separator + file);
-    }
-
-    private static void renameFile(String file1, String file2) throws Exception {
-        File logPath   = getLogPath(file1);
-        File logCopyPath = getLogPath(file2);
-        Files.move(logPath.toPath(), logCopyPath.toPath(), REPLACE_EXISTING);
-    }
-	
+	}	
 }
