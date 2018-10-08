@@ -70,6 +70,9 @@ public class JFSTMerge {
 	public static boolean isWhitespaceIgnored = true;
 	
 
+	@Parameter(names = "-rn", description = "Parameter to enable keeping both methods on renaming conflicts.")
+	public static boolean keepBothVersionsOfRenamedMethod = false;
+
 	/**
 	 * Merges merge scenarios, indicated by .revisions files. 
 	 * This is mainly used for evaluation purposes.
