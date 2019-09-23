@@ -2,118 +2,120 @@ package br.ufpe.cin.crypto;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
+import java.io.InputStream;
 import java.security.InvalidKeyException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.UnrecoverableEntryException;
+import java.security.KeyStore.ProtectionParameter;
+import java.security.KeyStore.SecretKeyEntry;
+import java.security.KeyStore.PasswordProtection;
+import java.security.KeyStore.PrivateKeyEntry;
+import java.security.cert.CertificateException;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.commons.io.FileUtils;
 
 import br.ufpe.cin.exceptions.CryptoException;
 
-public class CryptoUtils {
+public final class CryptoUtils {
 
+    private final String TRANSFORMATION = "AES/CBC/PKCS5Padding";
+    private final int KEY_SIZE = 256;
+    private final char[] KEY_STORE_PASSWORD = "thisiss3mkeystorepassword".toCharArray();
 
-	private static final String TRANSFORMATION = "AES/CBC/PKCS5Padding";
-	private static final SecretKey SECRETKEY = CryptoKey.getKey(); 
+    public void cipher(File plainFile, File cipherFile) throws CryptoException {
+        try {
+            SecretKey key = generateKey();
+            storeKey(key, plainFile.getName());
 
-	public static void encrypt(File inputFile, File outputFile) throws CryptoException
-	{
-		doCrypto(Cipher.ENCRYPT_MODE, inputFile, outputFile);
-	}
+            doCrypto(key, Cipher.ENCRYPT_MODE, plainFile, cipherFile);
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | IOException
+                | IllegalBlockSizeException | BadPaddingException e) {
+            throw new CryptoException("Error encrypting file " + plainFile.getAbsolutePath(), e);
+        }
+    }
 
-	public static void decrypt(File inputFile, File outputFile)
-			throws CryptoException {
-		doCrypto(Cipher.DECRYPT_MODE,inputFile, outputFile);
-	}
+    public void decipher(File cipherFile, File plainFile) throws CryptoException {
+        try {
+            SecretKey key = loadKey(cipherFile, cipherFile.getName());
 
-	//method to encrypt strings if required in future
-	public static String encryptString(String input) throws CryptoException
-	{
-		try
-		{
-			Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-			byte[] iv = new byte[cipher.getBlockSize()];
-	
-			IvParameterSpec ivParams = new IvParameterSpec(iv);
-			cipher.init(Cipher.ENCRYPT_MODE, SECRETKEY, ivParams);
-			
-			byte[] encrypted=cipher.doFinal(input.getBytes(StandardCharsets.UTF_8));
-			return new String(encrypted, StandardCharsets.UTF_8);
-			
-		} 
-		catch(NoSuchPaddingException | NoSuchAlgorithmException
-				| InvalidKeyException | BadPaddingException
-				| IllegalBlockSizeException | InvalidAlgorithmParameterException ex)
-		{
-			throw new CryptoException("Error encrypting/decrypting file", ex);
+            doCrypto(key, Cipher.DECRYPT_MODE, cipherFile, plainFile);
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException | InvalidKeyException | IOException
+                | IllegalBlockSizeException | BadPaddingException e) {
+            throw new CryptoException("Error decrypting file " + cipherFile.getAbsolutePath(), e);
+        }
+    }
 
-		}
-	}
-	
-	private static void doCrypto(int cipherMode, File input, File output) throws CryptoException
-	{
-		FileInputStream inputStream = null;
-		FileOutputStream outputStream = null;
-		try
-		{
+    
+    private void doCrypto(SecretKey key, int encryptMode, File input, File output) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+            IllegalBlockSizeException, BadPaddingException {
+        Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+        cipher.init(encryptMode, key);
 
-			Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-			byte[] iv = new byte[cipher.getBlockSize()];
+        byte[] plainText = FileUtils.readFileToByteArray(input);
+        byte[] cipherText = cipher.doFinal(plainText);
+        FileUtils.writeByteArrayToFile(output, cipherText);
+    }
 
-			IvParameterSpec ivParams = new IvParameterSpec(iv);
-			cipher.init(cipherMode, SECRETKEY, ivParams);
+    private SecretKey loadKey(File cipherFile, String entryName) throws CryptoException {
+        try (InputStream keyStoreData = new FileInputStream("keystore.ks")) {
 
-			inputStream = new FileInputStream(input);
-			byte [] inputBytes = new byte[(int) input.length()];
-			inputStream.read(inputBytes);
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            keyStore.load(keyStoreData, KEY_STORE_PASSWORD);
 
-			byte [] outputBytes = cipher.doFinal(inputBytes);
+            ProtectionParameter entryPassword = new PasswordProtection(KEY_STORE_PASSWORD);
+            return (SecretKey) ((PrivateKeyEntry) keyStore.getEntry(entryName, entryPassword)).getPrivateKey();
 
-			outputStream = new FileOutputStream(output,false);
-			outputStream.write(outputBytes);
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException
+                | UnrecoverableEntryException e) {
+            throw new CryptoException("Error loading symmetric key", e);
+        }
+    }
 
-			inputStream.close();
-			outputStream.close();
+    private void storeKey(SecretKey key, String entryName) throws CryptoException {
+        
+        try(InputStream keyStoreData = new FileInputStream("C:\\Users\\jvsfc\\Desktop\\jFSTMerge\\src\\main\\java\\br\\ufpe\\cin\\crypto\\keystore.ks")) {
+            
+            KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            keyStore.load(keyStoreData, KEY_STORE_PASSWORD);
+            
+            SecretKeyEntry secretKeyEntry = new SecretKeyEntry(key);
+            ProtectionParameter entryPassword = new PasswordProtection(KEY_STORE_PASSWORD);
+            keyStore.setEntry(entryName, secretKeyEntry, entryPassword);
+        
+        } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException e) {
+            throw new CryptoException("Error storing symmetric key", e);
+        }
+    }
 
-		}
-		catch (NoSuchPaddingException | NoSuchAlgorithmException
-				| InvalidKeyException | BadPaddingException
-				| IllegalBlockSizeException | IOException | InvalidAlgorithmParameterException ex) 
-		{
-			
-			throw new CryptoException("Error encrypting/decrypting file", ex);
-		}
-		finally{
-			try {
-				if(null!= inputStream)inputStream.close();
-				if(null!= outputStream)outputStream.close();
-			} catch (IOException e) {
-				throw new CryptoException("Error encrypting/decrypting file", e);
-			}
-		}
-	}
+    private SecretKey generateKey() throws CryptoException {
+        try {
+            KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+            keyGenerator.init(KEY_SIZE, new SecureRandom());
 
-//	@SuppressWarnings("static-access")
-//	public static void main(String[] args) {
-//		String logpath = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
-//		File f1 = new File(logpath + "jfstmerge.files");
-//		File f2 = new File(logpath + "jfstmerge.statistics");
-//		try {
-//			new CryptoUtils().decrypt(f1, f1);
-//			new CryptoUtils().decrypt(f2, f2);
-//
-//			//			new CryptoUtils().encrypt(f1, f1);
-//			//			new CryptoUtils().encrypt(f2, f2);
-//		} catch (CryptoException e) {
-//			e.printStackTrace();
-//		}
-//	}
+            return keyGenerator.generateKey();
+        } catch (NoSuchAlgorithmException e) {
+            throw new CryptoException("Error generating symmetric key", e);
+        }
+        
+    }
+
+    public static void main(String[] args) throws CryptoException {
+        CryptoUtils cryptoUtils = new CryptoUtils();
+        File file = new File("C:\\Users\\jvsfc\\Desktop\\jFSTMerge\\src\\main\\java\\br\\ufpe\\cin\\crypto\\FilesEncoding.java");
+        cryptoUtils.cipher(file, file);
+    }
+    
 }
+

@@ -25,6 +25,8 @@ public class LoggerStatistics {
 	//variable to avoid infinite recursion when trying to fix cryptographic issues 
 	public static int numberOfCriptographyFixAttempts = 0;
 
+	public static CryptoUtils cryptography = new CryptoUtils();
+
 	//managing enable/disable of cryptography
 	static{ 
 		if(!JFSTMerge.isCryptographed){
@@ -33,11 +35,11 @@ public class LoggerStatistics {
 
 				logpath = logpath + "jfstmerge.statistics";
 				File file = new File(logpath);
-				CryptoUtils.decrypt(file, file);
+				cryptography.decipher(file, file);
 
 				logpath = logpath + "jfstmerge.files";
 				file = new File(logpath);
-				CryptoUtils.decrypt(file, file);
+				cryptography.decipher(file, file);
 
 			} catch (CryptoException e) {
 				// the files are already decrypted, no need for further action
@@ -57,7 +59,7 @@ public class LoggerStatistics {
 			File statisticsLog = new File(logpath);
 
 			if(JFSTMerge.isCryptographed){
-				CryptoUtils.decrypt(statisticsLog, statisticsLog);
+				cryptography.decipher(statisticsLog, statisticsLog);
 			}
 
 			FileUtils.write(statisticsLog, logentry, true);
@@ -206,7 +208,7 @@ public class LoggerStatistics {
 				}
 
 				if(JFSTMerge.isCryptographed){
-					CryptoUtils.encrypt(statistics, statistics);
+					cryptography.cipher(statistics, statistics);
 				}
 
 				//summarizing retrieved statistics
@@ -263,12 +265,12 @@ public class LoggerStatistics {
 				logfiles.createNewFile();
 
 				if(JFSTMerge.isCryptographed){
-					CryptoUtils.encrypt(logfiles, logfiles);
+					cryptography.cipher(logfiles, logfiles);
 				}
 			}
 
 			if(JFSTMerge.isCryptographed){
-				CryptoUtils.decrypt(logfiles, logfiles); 
+				cryptography.decipher(logfiles, logfiles); 
 			}
 
 			//writing source code content
@@ -300,7 +302,7 @@ public class LoggerStatistics {
 			}
 
 			if(JFSTMerge.isCryptographed){
-				CryptoUtils.encrypt(logfiles, logfiles); 
+				cryptography.cipher(logfiles, logfiles); 
 			}
 		}
 		catch (CryptoException c)
@@ -338,7 +340,7 @@ public class LoggerStatistics {
 			FileUtils.write(statisticsLog, header, true);
 
 			if(JFSTMerge.isCryptographed){
-				CryptoUtils.encrypt(statisticsLog, statisticsLog);
+				cryptography.cipher(statisticsLog, statisticsLog);
 			}
 		}
 	}

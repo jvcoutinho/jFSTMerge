@@ -127,7 +127,7 @@ public class CryptoPerformanceTest {
 		String logPath = System.getProperty("user.home") + File.separator + ".jfstmerge" + File.separator + fileName;
 
 		File file = new File(logPath);
-		CryptoUtils.decrypt(file, file);
+		new CryptoUtils().decipher(file, file);
 	}
 
 }
