@@ -3,6 +3,8 @@ package br.ufpe.cin.logging;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -11,7 +13,8 @@ import java.util.List;
 import org.apache.commons.io.FileUtils;
 
 import br.ufpe.cin.app.JFSTMerge;
-import br.ufpe.cin.crypto.CryptoUtils;
+import br.ufpe.cin.crypto.CryptoUtils3;
+import br.ufpe.cin.crypto.FileEncrypterDecrypter;
 import br.ufpe.cin.exceptions.CryptoException;
 import br.ufpe.cin.exceptions.ExceptionUtils;
 import br.ufpe.cin.exceptions.PrintException;
@@ -25,30 +28,24 @@ public class LoggerStatistics {
 	//variable to avoid infinite recursion when trying to fix cryptographic issues 
 	public static int numberOfCriptographyFixAttempts = 0;
 
-	public static CryptoUtils cryptography = new CryptoUtils();
+	private static FileEncrypterDecrypter encrypter = new FileEncrypterDecrypter();
 
-	//managing enable/disable of cryptography
-	static{ 
-		if(!JFSTMerge.isCryptographed){
-			try {
-				String logpath   = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
+	private static final Path LOG_PATH = Paths.get(System.getProperty("user.home"), ".jfstmerge");
+	private static Path statisticsFilePath = LOG_PATH.resolve("jfstmerge.statistics");
+	private static Path mergedFilesFilePath = LOG_PATH.resolve("jfstmerge.files");
 
-				logpath = logpath + "jfstmerge.statistics";
-				File file = new File(logpath);
-				cryptography.decipher(file, file);
-
-				logpath = logpath + "jfstmerge.files";
-				file = new File(logpath);
-				cryptography.decipher(file, file);
-
-			} catch (CryptoException e) {
-				// the files are already decrypted, no need for further action
-			}
+	private static void decryptFile(Path fileToDecrypt) {
+		try {
+			encrypter.decipher(fileToDecrypt.toFile(), fileToDecrypt.toFile());
+		} catch (CryptoException e) {
+			System.out.println("hi");
+			assert(e.getMessage().contains("Error loading symmetric key")); // files are already cryptographed
 		}
 	}
 
-	public static void logContext(String msg, MergeContext context) throws PrintException{
-		try{
+	public static void logContext(String msg, MergeContext context) throws PrintException, IOException, CryptoException {
+
+			
 			initializeLogger();
 
 			//logging
@@ -58,8 +55,9 @@ public class LoggerStatistics {
 			logpath = logpath + "jfstmerge.statistics";
 			File statisticsLog = new File(logpath);
 
-			if(JFSTMerge.isCryptographed){
-				cryptography.decipher(statisticsLog, statisticsLog);
+			if(statisticsLog.exists()) {
+				decryptFile(statisticsFilePath);
+				decryptFile(mergedFilesFilePath);
 			}
 
 			FileUtils.write(statisticsLog, logentry, true);
@@ -70,33 +68,18 @@ public class LoggerStatistics {
 			}
 
 			logSummary();
-		}
-		catch (CryptoException c)
-		{
-			String logpath   = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
-			logpath = logpath + "jfstmerge.statistics";
-			File log = new File(logpath);
-			if (log.exists())
-			{
-				File log_defect = new File(logpath+"_defect"+System.currentTimeMillis());
-				log.renameTo(log_defect);
 
+			if(JFSTMerge.isCryptographed) {
+				encrypter.cipher(statisticsFilePath.toFile(), statisticsFilePath.toFile());
+				encrypter.cipher(mergedFilesFilePath.toFile(), mergedFilesFilePath.toFile());
 			}
-			if(numberOfCriptographyFixAttempts < 1)
-			{
-				numberOfCriptographyFixAttempts++;
-				logContext(msg,context);
-			}
-		}
-		catch(Exception e){
-			throw new PrintException(ExceptionUtils.getCauseMessage(e));
-		}
 	}
 
 	public static void logScenario(String loggermsg) throws IOException {
 		String logpath = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
 		new File(logpath).mkdirs(); //ensuring that the directories exists	
 		logpath = logpath + "jfstmerge.statistics.scenarios";
+
 
 		//reading the log file to see if it is not empty neither contains the header
 		String header = "revision;ssmergeconfs;ssmergeloc;ssmergerenamingconfs;ssmergedeletionconfs;ssmergeinnerdeletionconfs;ssmergetaeconfs;ssmergenereoconfs;"
@@ -164,7 +147,6 @@ public class LoggerStatistics {
 
 	@SuppressWarnings("unused")
 	private static void logSummary() throws IOException{
-		try{
 			//retrieving statistics
 			String logpath   = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
 			new File(logpath).mkdirs(); //ensuring that the directories exists	
@@ -207,10 +189,6 @@ public class LoggerStatistics {
 					equalconfs 	 += Integer.parseInt(columns[17]);
 				}
 
-				if(JFSTMerge.isCryptographed){
-					cryptography.cipher(statistics, statistics);
-				}
-
 				//summarizing retrieved statistics
 				int JAVA_FILES = lines.size() -1;
 				//int FP_UN = (unmergeconfs - ssmergeconfs) + duplicateddeclarationerrors - (ssmergetaeconfs + ssmergenereoconfs + ssmergeinitlblocksconfs);FP_UN=(FP_UN>0)?FP_UN:0;
@@ -233,27 +211,9 @@ public class LoggerStatistics {
 
 				FileUtils.write(fsummary, summary.toString(),false);
 			}
-		}
-		catch(CryptoException c)
-		{
-			String logpath   = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
-			logpath = logpath + "jfstmerge.statistics";
-			File log = new File(logpath);
-			if (log.exists())
-			{
-				File log_defect = new File(logpath+"_defect"+System.currentTimeMillis());
-				log.renameTo(log_defect);
-			}
-			if(numberOfCriptographyFixAttempts < 1)
-			{
-				numberOfCriptographyFixAttempts++;
-				logSummary();
-			}
-		}
 	}
 
 	private static void logFiles(String timeStamp, MergeContext context) throws IOException {
-		try{
 			//initialization
 			String logpath = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
 			new File(logpath).mkdirs(); //ensuring that the directories exists	
@@ -263,14 +223,6 @@ public class LoggerStatistics {
 
 			if(!logfiles.exists()){
 				logfiles.createNewFile();
-
-				if(JFSTMerge.isCryptographed){
-					cryptography.cipher(logfiles, logfiles);
-				}
-			}
-
-			if(JFSTMerge.isCryptographed){
-				cryptography.decipher(logfiles, logfiles); 
 			}
 
 			//writing source code content
@@ -301,27 +253,7 @@ public class LoggerStatistics {
 				FileUtils.write(logfiles, "!@#$%\n", true); 
 			}
 
-			if(JFSTMerge.isCryptographed){
-				cryptography.cipher(logfiles, logfiles); 
-			}
 		}
-		catch (CryptoException c)
-		{
-			String logpath   = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
-			logpath = logpath + "jfstmerge.files";
-			File log = new File(logpath);
-			if (log.exists())
-			{
-				File log_defect = new File(logpath+"_defect"+System.currentTimeMillis());
-				log.renameTo(log_defect);
-			}
-			if(numberOfCriptographyFixAttempts < 1)
-			{
-				numberOfCriptographyFixAttempts++;
-				logFiles(timeStamp,context);
-			}
-		}
-	}
 
 	private static void initializeLogger() throws IOException, CryptoException {
 		String logpath = System.getProperty("user.home")+ File.separator + ".jfstmerge" + File.separator;
@@ -338,10 +270,6 @@ public class LoggerStatistics {
 		if(!new File(logpath).exists()){
 			File statisticsLog = new File(logpath);
 			FileUtils.write(statisticsLog, header, true);
-
-			if(JFSTMerge.isCryptographed){
-				cryptography.cipher(statisticsLog, statisticsLog);
-			}
 		}
 	}
 
@@ -350,7 +278,7 @@ public class LoggerStatistics {
 	 * @param logpath
 	 * @throws CryptoException 
 	 */
-	private static void manageLogBuffer(String logpath) throws CryptoException {
+	private static void manageLogBuffer(String logpath) {
 		File log = new File(logpath);
 		if(log.exists()){
 			long logSizeMB = log.length() / (1024 * 1024);

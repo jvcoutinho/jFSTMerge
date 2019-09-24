@@ -13,7 +13,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import br.ufpe.cin.app.JFSTMerge;
-import br.ufpe.cin.crypto.CryptoUtils;
+import br.ufpe.cin.crypto.CryptoUtils3;
 import br.ufpe.cin.exceptions.CryptoException;
 
 @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
@@ -127,7 +127,7 @@ public class CryptoPerformanceTest {
 		String logPath = System.getProperty("user.home") + File.separator + ".jfstmerge" + File.separator + fileName;
 
 		File file = new File(logPath);
-		new CryptoUtils().decipher(file, file);
+		CryptoUtils3.decrypt(file, file);
 	}
 
 }

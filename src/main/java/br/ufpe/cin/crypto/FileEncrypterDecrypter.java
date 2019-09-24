@@ -45,7 +45,7 @@ public final class FileEncrypterDecrypter {
     public void cipher(File plainFile, File cipherFile) throws CryptoException {
         try {
             SecretKey key = generateKey();
-            storeKey(key, plainFile.getName());
+            storeKey(key, cipherFile.getName());
 
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             IvParameterSpec iv = generateIV(cipher);
@@ -138,6 +138,7 @@ public final class FileEncrypterDecrypter {
         }
         
     }
-    
+
+
 }
 
